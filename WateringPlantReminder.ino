@@ -17,13 +17,24 @@
 //constants
 const uint32_t ERROR_COLOR = 0xFF0000;
 const uint32_t OK_COLOR = 0x00FF00;
-const uint8_t SENSOR_WAKE_TIME = 1000;  //milliseconds
+const uint32_t SLEEP_COLOR = 0x87CEEB;
+const uint8_t SENSOR_WAKE_TIME = (uint8_t)1000;         //milliseconds
+const uint64_t READING_INTERVAL = (uint64_t)(1000000 * 5);  //in milliseconds
 
 //variables
 BLEServer *server = nullptr;
 BLEService *service = nullptr;
 Adafruit_NeoPixel status_led(1, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
 
+
+class BLECallbacks: public BLEServerCallbacks {
+  void onConnect(BLEServer *server) {
+    //do something at some point
+  }
+  void OnDisconnect(BLEServer *server) {
+    ::startSleep();
+  }
+};
 
 void set_status_led(uint32_t color) {
 #ifdef DEBUG
@@ -47,6 +58,7 @@ bool initBLE() {
     return false;
   }
   server = BLEDevice::createServer();
+  server->setCallbacks(new BLECallbacks());
   service = server->createService(SERVICE_UUID);
   return true;
 }
@@ -61,11 +73,19 @@ void startBLEBroadcast() {
   BLEDevice::startAdvertising();
 }
 
+void startSleep() {
+  set_status_led(SLEEP_COLOR);
+  esp_sleep_enable_timer_wakeup(READING_INTERVAL);
+  esp_deep_sleep_start();
+}
+
+
 void setup() {
   pinMode(NEOPIXEL_POWER, OUTPUT);
 #ifdef DEBUG
   digitalWrite(NEOPIXEL_POWER, HIGH);  //enable light for showing status
   status_led.clear();
+  status_led.setBrightness(127);  //set half bright
 #else
   digitalWrite(NEOPIXEL_POWER, LOW);
 #endif
