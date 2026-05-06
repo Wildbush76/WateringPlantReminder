@@ -16,7 +16,7 @@ async def Callback(device: BLEDevice, data: AdvertisementData):
         if (client.is_connected):
             result = await client.read_gatt_char("38072c05-608d-441e-987e-69ee78d4a58c")
             if (result is not None):
-                print(result)
+                print(int.from_bytes(result))
             else:
                 print("Failed to read")
         await client.disconnect()
