@@ -9,7 +9,6 @@ import logging
 
 class Server:
     async def _ble_detection(self, device: BLEDevice, advertisement: AdvertisementData):
-        self.logger.info("BLE detected")
         if device in self.connections:
             return
         self.connections.add(device)
@@ -22,8 +21,8 @@ class Server:
                 result = await client.read_gatt_char(self.configs.characteristicUUID)
 
                 if (result is not None):
-                    reading = int.from_bytes(result)
-                    self.logger.info(f"Reading {reading}")
+                    reading = int.from_bytes(result, byteorder="little")
+
                     await self._proccess_reading(reading)
 
                 else:
@@ -35,6 +34,8 @@ class Server:
 
     async def _proccess_reading(self, raw_reading: int):
         normalized = await self._normalize_reading(raw_reading)
+        self.logger.info(
+            f"new reading : {normalized} raw value : {raw_reading}")
         delta = self.previous_read - normalized
         self.previous_read = normalized
         self.plant_state = await self.plant_state.RecieveMeasurement(

@@ -17,25 +17,25 @@ class PlantState(ABC):
 
     def __init__(self, message_callback):
         self._message_callback = message_callback
-        asyncio.run(message_callback(self._voice_line()))
+        message_callback(self._voice_line())
 
     async def RecieveMeasurement(self, measurement: float, delta: float):
         if delta > 0.03 and not isinstance(self, FreshyHydrated):
             if isinstance(self, MorePlease):
-                return self._RecieveMeasurement(measurement, delta)
+                return await self._RecieveMeasurement(measurement, delta)
             else:
                 return MorePlease(self._message_callback)
 
-        if measurement > WateringThresholds.HYDRATED.value and not isinstance(self, FreshyHydrated):
+        if measurement >= WateringThresholds.HYDRATED.value and not isinstance(self, FreshyHydrated):
             return FreshyHydrated(self._message_callback)
-        elif measurement > WateringThresholds.LITTLETHRISTY.value and not isinstance(self, ALittleThirsty):
+        elif measurement >= WateringThresholds.LITTLETHRISTY.value and not isinstance(self, ALittleThirsty):
             return ALittleThirsty(self._message_callback)
-        elif measurement > WateringThresholds.THRISTY.value and not isinstance(self, FarilyThirsty):
+        elif measurement >= WateringThresholds.THRISTY.value and not isinstance(self, FarilyThirsty):
             return FarilyThirsty(self._message_callback)
-        elif measurement > WateringThresholds.DYING.value and not isinstance(self, DyingOfThirst):
+        elif measurement >= WateringThresholds.DYING.value and not isinstance(self, DyingOfThirst):
             return DyingOfThirst(self._message_callback)
         else:
-            return self._RecieveMeasurement(measurement, delta)
+            return await self._RecieveMeasurement(measurement, delta)
 
     @abstractmethod
     async def _RecieveMeasurement(self, measurement: float, delta: float):
@@ -70,8 +70,8 @@ class DyingOfThirst(PlantState):
     def _voice_line(self):
         return "Dying"
 
-    async def __init__(self, message_callback):
-        await super().__init__(message_callback)
+    def __init__(self, message_callback):
+        super().__init__(message_callback)
         self.counter = 0
 
     async def _RecieveMeasurement(self, measurement, delta):
