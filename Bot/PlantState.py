@@ -26,16 +26,20 @@ class PlantState(ABC):
             else:
                 return MorePlease(self._message_callback)
 
-        if measurement >= WateringThresholds.HYDRATED.value and not isinstance(self, FreshyHydrated):
-            return FreshyHydrated(self._message_callback)
-        elif measurement >= WateringThresholds.LITTLETHRISTY.value and not isinstance(self, ALittleThirsty):
-            return ALittleThirsty(self._message_callback)
-        elif measurement >= WateringThresholds.THRISTY.value and not isinstance(self, FarilyThirsty):
-            return FarilyThirsty(self._message_callback)
-        elif measurement >= WateringThresholds.DYING.value and not isinstance(self, DyingOfThirst):
-            return DyingOfThirst(self._message_callback)
-        else:
-            return await self._RecieveMeasurement(measurement, delta)
+        if measurement >= WateringThresholds.HYDRATED.value:
+            if not isinstance(self, FreshyHydrated):
+                return FreshyHydrated(self._message_callback)
+        elif measurement >= WateringThresholds.LITTLETHRISTY.value:
+            if not isinstance(self, ALittleThirsty):
+                return ALittleThirsty(self._message_callback)
+        elif measurement >= WateringThresholds.THRISTY.valu:
+            if not isinstance(self, FarilyThirsty):
+                return FarilyThirsty(self._message_callback)
+        elif measurement >= WateringThresholds.DYING.value:
+            if not isinstance(self, DyingOfThirst):
+                return DyingOfThirst(self._message_callback)
+
+        return await self._RecieveMeasurement(measurement, delta)
 
     @abstractmethod
     async def _RecieveMeasurement(self, measurement: float, delta: float):
