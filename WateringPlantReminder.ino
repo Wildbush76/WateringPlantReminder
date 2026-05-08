@@ -20,11 +20,13 @@ const uint32_t OK_COLOR = 0x00FF00;
 const uint32_t SLEEP_COLOR = 0x87CEEB;
 const uint8_t SENSOR_WAKE_TIME = (uint8_t)1000;             //milliseconds
 const uint64_t READING_INTERVAL = (uint64_t)(1000000 * 5);  //in microseconds
+const uint32_t BLE_BROADCAST_TIMEOUT = 1000 * 30;           //milliseconds
 
 //variables
 BLEServer *server = nullptr;
 BLEService *service = nullptr;
 Adafruit_NeoPixel status_led(1, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
+bool active_connection = false;
 
 
 //functions
@@ -38,12 +40,9 @@ void StartBLEBroadcast();
 
 class BLECallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer *server) {
-    //do something at some point
-    Serial.println("BLE connect");
+    active_connection = true;
   }
   void onDisconnect(BLEServer *server) {
-    Serial.println("BLE disconnect");
-    Serial.flush();
     startSleep();
   }
 };
@@ -86,15 +85,12 @@ void startBLEBroadcast() {
 }
 
 void startSleep() {
-  set_status_led(SLEEP_COLOR);
-  delay(500);
   esp_sleep_enable_timer_wakeup(READING_INTERVAL);
   esp_deep_sleep_start();
 }
 
 
 void setup() {
-  Serial.begin(9600);
 
   pinMode(NEOPIXEL_POWER, OUTPUT);
 #ifdef DEBUG
@@ -107,22 +103,22 @@ void setup() {
 
   if (!initBLE()) {
     set_status_led(ERROR_COLOR);
-    Serial.println("Init fail");
     return;
   }
   initMoistureSensor();
   set_status_led(OK_COLOR);
-  Serial.println("Init success");
 
   uint16_t value = readMoistureSensor();
-  Serial.println(value);
   BLECharacteristic *moisture =
     service->createCharacteristic(CHARACTERISTIC_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
   moisture->setValue(value);
   startBLEBroadcast();
+
+  delay(BLE_BROADCAST_TIMEOUT);
+  if (!active_connection)
+    startSleep();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  delay(2000);
+  //do nothing
 }

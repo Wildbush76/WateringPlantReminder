@@ -14,20 +14,24 @@ class Server:
         self.connections.add(device)
         self.logger.info(
             f"Trying to connect to {device.name} @ {device.address}")
-        async with BleakClient(device.address) as client:
-            if (client.is_connected):
-                self.logger.info(
-                    f"Connected to device {client.name} @ {client.address}")
-                result = await client.read_gatt_char(self.configs.characteristicUUID)
+        try:
+            async with BleakClient(device.address) as client:
+                if (client.is_connected):
+                    self.logger.info(
+                        f"Connected to device {client.name} @ {client.address}")
+                    result = await client.read_gatt_char(self.configs.characteristicUUID)
 
-                if (result is not None):
-                    reading = int.from_bytes(result, byteorder="little")
+                    if (result is not None):
+                        reading = int.from_bytes(result, byteorder="little")
 
-                    await self._proccess_reading(reading)
+                        await self._proccess_reading(reading)
 
-                else:
-                    self.logger.warning("Failed to read")
-        self.connections.remove(device)
+                    else:
+                        self.logger.warning("Failed to read")
+        except OSError as e:
+            self.logger.error(e)
+        finally:
+            self.connections.remove(device)
 
     async def _normalize_reading(self, reading: int) -> float:
         return reading / (1 << 12)

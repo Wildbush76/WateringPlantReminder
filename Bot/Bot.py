@@ -37,10 +37,10 @@ async def send_message(voice_line: str):
 server = Server(add_message_to_queue, configs)
 
 
-@tasks.loop(seconds=20)
+@tasks.loop(seconds=1)
 async def check_queue():
-    logger.info("Checking queue")
     for message in queue:
+        logger.info("Sending message")
         await send_message(message)
     queue.clear()
 
@@ -51,5 +51,5 @@ async def on_ready():
     check_queue.start()
 
 
-token = os.getenv("discord_token")
+token = os.getenv("plant_token")
 client.run(token)
