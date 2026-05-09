@@ -23,9 +23,7 @@ class Server:
 
                     if (result is not None):
                         reading = int.from_bytes(result, byteorder="little")
-
                         await self._proccess_reading(reading)
-
                     else:
                         self.logger.warning("Failed to read")
         except OSError as e:
@@ -38,9 +36,9 @@ class Server:
 
     async def _proccess_reading(self, raw_reading: int):
         normalized = await self._normalize_reading(raw_reading)
+        delta = normalized - self.previous_read
         self.logger.info(
-            f"new reading : {normalized} raw value : {raw_reading}")
-        delta = self.previous_read - normalized
+            f"new reading : {normalized} delta : {delta}")
         self.previous_read = normalized
         self.plant_state = await self.plant_state.RecieveMeasurement(
             normalized, delta)
