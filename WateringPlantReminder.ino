@@ -11,7 +11,8 @@
 #define CHARACTERISTIC_UUID "38072c05-608d-441e-987e-69ee78d4a58c"
 #define MOISTURE_SENSOR A0
 #define MOISTURE_SENSOR_POWER A1
-#define DEBUG
+
+//#define DEBUG
 
 
 //constants
@@ -19,7 +20,7 @@ const uint32_t ERROR_COLOR = 0xFF0000;
 const uint32_t OK_COLOR = 0x00FF00;
 const uint32_t SLEEP_COLOR = 0x87CEEB;
 const uint8_t SENSOR_WAKE_TIME = (uint8_t)1000;             //milliseconds
-const uint64_t READING_INTERVAL = (uint64_t)(1000000 * 5);  //in microseconds
+const uint64_t READING_INTERVAL = (uint64_t)(1000000 * 600);  //in microseconds
 const uint32_t BLE_BROADCAST_TIMEOUT = 1000 * 30;           //milliseconds
 
 //variables

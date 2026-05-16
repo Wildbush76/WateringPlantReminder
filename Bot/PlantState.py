@@ -83,7 +83,7 @@ class DyingOfThirst(PlantState):
         self.counter = 0
 
     async def RecieveMeasurement(self, measurement, delta):
-        if delta > WateringThresholds.WATERED:
+        if delta > WateringThresholds.WATERED.value:
             return MorePlease(self._message_callback)
 
         if measurement >= WateringThresholds.HYDRATED.value:
@@ -101,7 +101,7 @@ class Dead(PlantState):
         return "Dead"
 
     async def RecieveMeasurement(self, measurement, delta):
-        if delta > WateringThresholds.WATERED:
+        if delta > WateringThresholds.WATERED.value:
             return MorePlease(self._message_callback)
 
         if measurement >= WateringThresholds.HYDRATED.value:
