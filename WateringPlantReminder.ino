@@ -8,15 +8,15 @@
 
 #define SERVICE_UUID "2db9dd7d-1637-47db-96d4-495484ed45e7"
 #define CHARACTERISTIC_UUID "38072c05-608d-441e-987e-69ee78d4a58c"
-#define MOISTURE_SENSOR D0
+#define MOISTURE_SENSOR 1
 
 //#define DEBUG
 
 
 //constants
-const uint8_t SENSOR_WAKE_TIME = (uint8_t)1000;             //milliseconds
-const uint64_t READING_INTERVAL = (uint64_t)(1000000 * 3600);  //in microseconds
-const uint32_t BLE_BROADCAST_TIMEOUT = 1000 * 30;           //milliseconds
+const uint8_t SENSOR_WAKE_TIME = (uint8_t)200;               //milliseconds
+const uint64_t READING_INTERVAL = (uint64_t)(1000000 * 60);  //in microseconds
+const uint32_t BLE_BROADCAST_TIMEOUT = 1000 * 10;            //milliseconds
 
 //variables
 BLEServer *server = nullptr;
@@ -43,10 +43,15 @@ class BLECallbacks : public BLEServerCallbacks {
 };
 
 void error() {
-  digitalWrite(LED_BUILTIN,LOW);
+  digitalWrite(LED_BUILTIN, LOW);
   delay(5000);
   //trigger sleep
   startSleep();
+}
+
+void setupMoistureSensor() {
+  readMoistureSensor();
+  delay(SENSOR_WAKE_TIME);
 }
 
 uint16_t readMoistureSensor() {
@@ -84,12 +89,12 @@ void setup() {
 
   if (!initBLE()) {
     error();
-    return;
   }
 
-
+  setupMoistureSensor();
 
   uint16_t value = readMoistureSensor();
+
   BLECharacteristic *moisture =
     service->createCharacteristic(CHARACTERISTIC_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
   moisture->setValue(value);
@@ -98,8 +103,6 @@ void setup() {
   delay(BLE_BROADCAST_TIMEOUT);
   if (!active_connection)
     startSleep();
-
-
 }
 
 void loop() {
