@@ -1,0 +1,12 @@
+{
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            // Fixes all auto-fixable lint rules (including unused imports)
+            "source.fixAll.ruff": "explicit",
+            // Explicitly runs Ruff's import sorter
+            "source.organizeImports.ruff": "explicit"
+        }
+    }
+}

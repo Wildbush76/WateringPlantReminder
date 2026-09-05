@@ -1,6 +1,5 @@
-from enum import Enum
 from abc import ABC, abstractmethod
-import asyncio
+from enum import Enum
 
 
 class WateringThresholds(Enum):
@@ -134,7 +133,7 @@ class FreshyHydrated(PlantState):
 
     async def RecieveMeasurement(self, measurement: float, delta: float):
         self.counter += 1
-        if (self.counter > 1 * 3):
+        if self.counter > 1 * 3:
             return TooMuchWater(self._message_callback)
 
         if measurement >= WateringThresholds.HYDRATED.value:

@@ -1,9 +1,11 @@
+import logging
+import os
+
 import discord
 from discord.ext import tasks
-import os
-from Server import Server
-from PlantConfigs import PlantConfigs
-import logging
+
+from .plant_config import PlantConfigs
+from .server import Server
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -33,6 +35,7 @@ async def send_message(voice_line: str):
 
     person = await client.fetch_user(configs.vicitim)
     await person.send(voice_line)
+
 
 server = Server(add_message_to_queue, configs)
 
