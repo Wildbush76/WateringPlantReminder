@@ -1,60 +1,53 @@
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 
 from bleak import BleakClient, BleakScanner
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
-from bot.plant_config import PlantConfigs
-from bot.plant_state import FreshyHydrated
-
 
 class Server:
-    async def _ble_detection(self, device: BLEDevice, advertisement: AdvertisementData):
-        if device in self.connections:
+    async def _ble_detection(
+        self, device: BLEDevice, advertisement: AdvertisementData
+    ) -> None:
+        if device in self._connections:
             return
-        self.connections.add(device)
-        self.logger.info(f"Trying to connect to {device.name} @ {device.address}")
+
+        self._connections.add(device)
+        self._logger.info(f"Trying to connect to {device.name} @ {device.address}")
         try:
             async with BleakClient(device.address) as client:
                 if client.is_connected:
-                    self.logger.info(
+                    self._logger.info(
                         f"Connected to device {client.name} @ {client.address}"
                     )
-                    result = await client.read_gatt_char(
-                        self.configs.characteristicUUID
-                    )
+                    try:
+                        await self._device_callback(client)
+                    finally:
+                        self._connections.remove(device)
 
-                    if result is not None:
-                        reading = int.from_bytes(result, byteorder="little")
-                        await self._proccess_reading(reading)
-                    else:
-                        self.logger.warning("Failed to read")
         except OSError as e:
-            self.logger.error(e)
+            self._logger.error(e)
         finally:
-            self.connections.remove(device)
+            self._connections.remove(device)
 
-    async def _normalize_reading(self, reading: int) -> float:
-        return reading / (1 << 12)
+    def __init__(
+        self,
+        device_callback: Callable[[BleakClient], Awaitable],
+        *serviceUUIDs: list[str],
+    ):
+        self._logger = logging.getLogger(__name__)
+        self._device_callback = device_callback
+        self._connections = set()
+        self._scanner = BleakScanner(self._ble_detection, serviceUUIDs, "passive")
+        self.__scanner_task: None | asyncio.Task = None
 
-    async def _proccess_reading(self, raw_reading: int):
-        normalized = await self._normalize_reading(raw_reading)
-        delta = normalized - self.previous_read
-        self.logger.info(f"new reading : {normalized} delta : {delta}")
-        self.previous_read = normalized
-        self.plant_state = await self.plant_state.RecieveMeasurement(normalized, delta)
+    async def start(self) -> None:
+        self._logger.info("Starting BLE")
+        self.__scanner_task = self._scanner.start()
 
-    def __init__(self, message_callback, configs: PlantConfigs):
-        self.logger = logging.getLogger(__name__)
-        self.configs = configs
-        self.connections = set()
-        self.previous_read = 0
-        self.plant_state = FreshyHydrated(message_callback)
-        self.scanner = BleakScanner(
-            self._ble_detection, [configs.serviceUUID], "passive"
-        )
-
-    async def start(self):
-        self.logger.info("Starting BLE")
-        asyncio.create_task(self.scanner.start())
+    async def stop(self) -> None:
+        if self.__scanner_task is not None:
+            self.__scanner_task.cancel()
+            await self.__scanner_task

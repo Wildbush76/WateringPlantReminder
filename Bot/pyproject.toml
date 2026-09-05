@@ -8,13 +8,17 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+    "aiofiles>=25.1.0",
     "bleak>=3.0.2",
     "discord>=2.3.2",
     "pydantic>=2.13.5",
+    "pydantic-settings>=2.15.0",
+    "python-dotenv>=1.2.3",
 ]
 
 [project.scripts]
 bot = "bot:main"
+test_server = "bot:test_server"
 
 [build-system]
 requires = ["uv_build>=0.12.10,<0.13.0"]
