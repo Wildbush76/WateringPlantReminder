@@ -68,6 +68,7 @@ class plant_bot(discord.Client):
         # embed.set_image
         async with create_graph(self._settings.data_file) as graph:
             if graph is None:
+                await interaction.response.send_message("Failed to make graph")
                 return
 
             file = discord.File(graph.file, filename="graph.png")

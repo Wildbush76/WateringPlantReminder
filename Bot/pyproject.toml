@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.scripts]
-bot = "bot:main"
+bot = "bot:run_bot"
 test_server = "bot:test_server"
 graph = "bot:graph_test"
 

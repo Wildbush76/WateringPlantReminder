@@ -18,24 +18,25 @@ async def create_graph(
     if not os.path.isfile(data_file):
         _logger.warning("Data file does not exist. Cannot make a graph")
         yield None
-    try:
-        timestamps = [1]
-        values = [1]
-        async with aiofiles.open(data_file, mode="r") as file:
-            line = await file.readline()
-            while line:
-                time, value = line.split(",")
-                timestamps.append(float(time))
-                values.append(int(value))
+    else:
+        try:
+            timestamps = [1]
+            values = [1]
+            async with aiofiles.open(data_file, mode="r") as file:
                 line = await file.readline()
+                while line:
+                    time, value = line.split(",")
+                    timestamps.append(float(time))
+                    values.append(int(value))
+                    line = await file.readline()
 
-        plt.plot(timestamps, values, color="blue")
-        plt.grid(True)
-        plt.title("Plant Soil Moisture")
+            plt.plot(timestamps, values, color="blue")
+            plt.grid(True)
+            plt.title("Plant Soil Moisture")
 
-        with tempfile.TemporaryFile() as file:
-            plt.savefig(file, format="png", bbox_inches="tight")
-            yield file
+            with tempfile.TemporaryFile() as file:
+                plt.savefig(file, format="png", bbox_inches="tight")
+                yield file
 
-    except Exception:
-        _logger.exception("Failed to create graph")
+        except Exception:
+            _logger.exception("Failed to create graph")

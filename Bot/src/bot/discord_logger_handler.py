@@ -42,4 +42,4 @@ class DiscordHandler(Handler):
             )
             await self._user.send(embed=embed)
         except Exception as e:  # noqa: BLE001
-            print(f"ERROR discordHandler {e}")
+            print(f"ERROR discordHandler {e}")  # logging isnt working so have to print
