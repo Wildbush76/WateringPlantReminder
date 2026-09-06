@@ -1,8 +1,6 @@
+import io
 import logging
 import os
-import tempfile
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 
 import aiofiles
 import matplotlib.pyplot as plt
@@ -10,33 +8,33 @@ import matplotlib.pyplot as plt
 _logger = logging.getLogger(__name__)
 
 
-@asynccontextmanager
-async def create_graph(
-    data_file: str,
-) -> AsyncGenerator[tempfile._TemporaryFileWrapper]:
+async def create_graph(data_file: str) -> io.BytesIO | None:
     _logger.info("Creating graph")
     if not os.path.isfile(data_file):
         _logger.warning("Data file does not exist. Cannot make a graph")
-        yield None
-    else:
-        try:
-            timestamps = [1]
-            values = [1]
-            async with aiofiles.open(data_file, mode="r") as file:
+        return
+
+    try:
+        timestamps = []
+        values = []
+        async with aiofiles.open(data_file, mode="r") as file:
+            line = await file.readline()
+            while line:
+                time, value = line.split(",")
+                timestamps.append(float(time))
+                values.append(int(value))
                 line = await file.readline()
-                while line:
-                    time, value = line.split(",")
-                    timestamps.append(float(time))
-                    values.append(int(value))
-                    line = await file.readline()
 
-            plt.plot(timestamps, values, color="blue")
-            plt.grid(True)
-            plt.title("Plant Soil Moisture")
+        plt.plot(timestamps, values, color="blue")
+        plt.grid(True)
+        plt.title("Plant Soil Moisture")
+        plt.xlabel("Time (seconds)")
+        plt.ylabel("Readings")
+        image = io.BytesIO()
 
-            with tempfile.TemporaryFile() as file:
-                plt.savefig(file, format="png", bbox_inches="tight")
-                yield file
+        plt.savefig(image, format="png", bbox_inches="tight")
+        image.seek(0)
+        return image
 
-        except Exception:
-            _logger.exception("Failed to create graph")
+    except Exception:
+        _logger.exception("Failed to create graph")

@@ -66,17 +66,18 @@ class plant_bot(discord.Client):
 
     async def graph(self, interaction: discord.Interaction) -> None:
         # embed.set_image
-        async with create_graph(self._settings.data_file) as graph:
-            if graph is None:
-                await interaction.response.send_message("Failed to make graph")
-                return
+        graph = await create_graph(self._settings.data_file)
 
-            file = discord.File(graph.file, filename="graph.png")
+        if graph is None:
+            await interaction.response.send_message("Failed to make graph")
+            return
 
-            embed = discord.embeds.Embed(
-                colour=discord.Color.dark_green(), title="Plant Graph"
-            )
+        file = discord.File(fp=graph, filename="graph.png")
 
-            embed.set_image(url="attachment://graph.png")
+        embed = discord.embeds.Embed(
+            colour=discord.Color.dark_green(), title="Plant Graph"
+        )
 
-            await interaction.response.send_message(embed=embed, file=file)
+        embed.set_image(url="attachment://graph.png")
+
+        await interaction.response.send_message(embed=embed, file=file)
