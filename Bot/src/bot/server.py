@@ -19,16 +19,11 @@ class Server:
         try:
             async with BleakClient(device.address) as client:
                 if client.is_connected:
-                    self._logger.info(
-                        f"Connected to device {client.name} @ {client.address}"
-                    )
-                    try:
-                        await self._device_callback(client)
-                    finally:
-                        self._connections.remove(device)
+                    self._logger.info(f"Connected to {device.name}")
+                    await self._device_callback(client)
 
-        except OSError as e:
-            self._logger.error(e)
+        except Exception as e:
+            self._logger.warning("failed to connect to BLE device %s", e, exc_info=True)
         finally:
             self._connections.remove(device)
 
@@ -45,7 +40,7 @@ class Server:
 
     async def start(self) -> None:
         self._logger.info("Starting BLE")
-        self.__scanner_task = self._scanner.start()
+        self.__scanner_task = asyncio.ensure_future(self._scanner.start())
 
     async def stop(self) -> None:
         if self.__scanner_task is not None:

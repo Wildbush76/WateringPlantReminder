@@ -28,7 +28,7 @@ class logging_server:
 
     def save_reading(self, value: int) -> None:
         with open(VALUE_LOG_FILE, "a") as file:
-            file.write(f"{time.time()},{value}")
+            file.write(f"{time.time()},{value}\n")
 
     async def run(self):
         self._logger.info("Starting logging server")
