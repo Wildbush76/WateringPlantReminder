@@ -35,7 +35,7 @@ class Server:
         self._logger = logging.getLogger(__name__)
         self._device_callback = device_callback
         self._connections = set()
-        self._scanner = BleakScanner(self._ble_detection, serviceUUIDs, "passive")
+        self._scanner = BleakScanner(self._ble_detection, serviceUUIDs, "active")
         self.__scanner_task: None | asyncio.Task = None
 
     async def start(self) -> None:

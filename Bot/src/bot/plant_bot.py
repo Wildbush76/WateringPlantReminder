@@ -6,8 +6,10 @@ from typing import override
 import aiofiles
 import discord
 from bleak import BleakClient
+from discord.app_commands import Command
 
 from .bot_settings import PlantSettings
+from .grapher import create_graph
 from .server import Server
 
 
@@ -48,4 +50,32 @@ class plant_bot(discord.Client):
     @override
     async def on_ready(self) -> None:
         await self._ble_server.start()
+
+        # create slash commands
+        tree = discord.app_commands.CommandTree(self)
+        tree.add_command(
+            Command(
+                name="create_graph",
+                callback=self.graph,
+                description="Creates a graph of logged data",
+            )
+        )
+        await tree.sync()
+
         self._logger.info(f"{'-' * 10}Bot Started{'-' * 10}")
+
+    async def graph(self, interaction: discord.Interaction) -> None:
+        # embed.set_image
+        async with create_graph(self._settings.data_file) as graph:
+            if graph is None:
+                return
+
+            file = discord.File(graph.file, filename="graph.png")
+
+            embed = discord.embeds.Embed(
+                colour=discord.Color.dark_green(), title="Plant Graph"
+            )
+
+            embed.set_image(url="attachment://graph.png")
+
+            await interaction.response.send_message(embed=embed, file=file)

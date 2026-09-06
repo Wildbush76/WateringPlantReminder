@@ -4,13 +4,14 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 authors = [
-    { name = "Wildbush", email = "75509166+Wildbush76@users.noreply.github.com" }
+    { name = "Wildbush", email = "75509166+Wildbush76@users.noreply.github.com" },
 ]
 requires-python = ">=3.11"
 dependencies = [
     "aiofiles>=25.1.0",
     "bleak>=3.0.2",
     "discord>=2.3.2",
+    "matplotlib>=3.11.1",
     "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
     "python-dotenv>=1.2.3",
@@ -19,12 +20,11 @@ dependencies = [
 [project.scripts]
 bot = "bot:main"
 test_server = "bot:test_server"
+graph = "bot:graph_test"
 
 [build-system]
 requires = ["uv_build>=0.12.10,<0.13.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
-dev = [
-    "ruff>=0.16.6",
-]
+dev = ["ruff>=0.16.6"]
