@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 # logging
@@ -6,10 +5,8 @@ import sys
 
 import dotenv
 
-from .discord_logger_handler import DiscordHandler
-from .grapher import create_graph
-from .plant_bot import plant_bot
-from .test_logging_server import logging_server
+from .discord_bot.discord_logger_handler import DiscordHandler
+from .discord_bot.plant_bot import plant_bot
 
 
 def _setup_logger():
@@ -37,19 +34,3 @@ def run_bot() -> None:
     logging.getLogger().addHandler(discord_handler)
 
     bot.run(log_handler=None)
-
-
-def test_server() -> None:
-    _setup_logger()
-
-    server = logging_server()
-    asyncio.run(server.run())
-
-
-def graph_test() -> None:
-    _setup_logger()
-
-    async def make_graph():
-        await create_graph("data.csv")
-
-    asyncio.run(make_graph())

@@ -8,9 +8,9 @@ import discord
 from bleak import BleakClient
 from discord.app_commands import Command
 
+from ..util.grapher import create_graph
+from ..util.server import Server
 from .bot_settings import PlantSettings
-from .grapher import create_graph
-from .server import Server
 
 
 class plant_bot(discord.Client):

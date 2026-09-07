@@ -25,10 +25,17 @@ async def create_graph(data_file: str) -> io.BytesIO | None:
                 values.append(int(value))
                 line = await file.readline()
 
+        if len(timestamps) == 0:
+            return None  # nothing to graph
+        # edit the timestamps
+        epoch = timestamps[0]
+        SECONDS_PER_DAY = (60) * (60) * (24)
+        timestamps = [(t - epoch) / SECONDS_PER_DAY for t in timestamps]
+
         plt.plot(timestamps, values, color="blue")
         plt.grid(True)
         plt.title("Plant Soil Moisture")
-        plt.xlabel("Time (seconds)")
+        plt.xlabel("Time (Days)")
         plt.ylabel("Readings")
         image = io.BytesIO()
 
