@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 
@@ -11,10 +10,10 @@ class Server:
     async def _ble_detection(
         self, device: BLEDevice, advertisement: AdvertisementData
     ) -> None:
-        if device in self._connections:
+        if not self._scanning:
             return
+        await self.stop()
 
-        self._connections.add(device)
         self._logger.info(f"Trying to connect to {device.name} @ {device.address}")
         try:
             async with BleakClient(device.address) as client:
@@ -25,7 +24,7 @@ class Server:
         except Exception as e:
             self._logger.warning("failed to connect to BLE device %s", e, exc_info=True)
         finally:
-            self._connections.remove(device)
+            await self.start()
 
     def __init__(
         self,
@@ -34,15 +33,20 @@ class Server:
     ):
         self._logger = logging.getLogger(__name__)
         self._device_callback = device_callback
-        self._connections = set()
         self._scanner = BleakScanner(self._ble_detection, serviceUUIDs, "active")
-        self.__scanner_task: None | asyncio.Task = None
+        self._scanning = False
 
     async def start(self) -> None:
-        self._logger.info("Starting BLE")
-        self.__scanner_task = asyncio.ensure_future(self._scanner.start())
+        if self._scanning:
+            return
+
+        self._logger.info("Starting Scanning BLE")
+        self._scanning = True
+        await self._scanner.start()
 
     async def stop(self) -> None:
-        if self.__scanner_task is not None:
-            self.__scanner_task.cancel()
-            await self.__scanner_task
+        if not self._scanning:
+            return
+        self._logger.info("Stopping Scanning BLE")
+        self._scanning = False
+        await self._scanner.stop()
