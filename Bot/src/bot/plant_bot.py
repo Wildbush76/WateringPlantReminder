@@ -22,6 +22,9 @@ class plant_bot(discord.Client):
         self._logger = logging.getLogger()
 
         # setup discord bot
+        discord.VoiceClient.warn_dave = False
+        discord.VoiceClient.warn_nacl = False
+
         intents = discord.Intents.default()
 
         super().__init__(intents=intents)
