@@ -1,0 +1,13 @@
+services:
+  plant_bot:
+    build: .
+    image: ghcr.io/wildbush76/plant_bot:latest
+    environment:
+      - DATA_FILE=/var/lib/plant_bot/data.csv
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+      - plant_data:/var/lib/plant_bot
+
+volumes:
+  plant_data:
