@@ -1,0 +1,12 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+.env
+.venv
+
+data.csv
+.gitignore
+.vscode
+token.txt

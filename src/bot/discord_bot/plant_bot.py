@@ -27,7 +27,7 @@ class plant_bot(discord.Client):
 
         intents = discord.Intents.default()
 
-        super().__init__(intents=intents)
+        super().__init__(intents=intents, status=discord.Status.online)
 
     async def _device_callback(self, device: BleakClient) -> None:
         _bytes = await device.read_gatt_char(self._settings.characteristicUUID)
@@ -47,8 +47,8 @@ class plant_bot(discord.Client):
         async with aiofiles.open(self._settings.data_file, mode="a") as file:
             await file.write(f"{time.time()},{reading}\n")
 
-    def run(self, *args, **kwargs) -> None:
-        super().run(self._settings.discord_token, *args, **kwargs)
+    def run(self, token: str, *args, **kwargs) -> None:
+        super().run(token, *args, **kwargs)
 
     @override
     async def on_ready(self) -> None:
@@ -64,6 +64,12 @@ class plant_bot(discord.Client):
             )
         )
         await tree.sync()
+
+        await self.change_presence(
+            activity=discord.Activity(
+                name="Planting", type=discord.ActivityType.playing
+            )
+        )
 
         self._logger.info(f"{'-' * 10}Bot Started{'-' * 10}")
 

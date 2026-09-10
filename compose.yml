@@ -1,0 +1,26 @@
+services:
+  plant_bot:
+    build:
+      context: .
+      platforms:
+        - linux/arm64
+    image: ghcr.io/wildbush76/plant_bot:latest
+
+    environment:
+      - DATA_FILE=/var/lib/plant_bot/data.csv
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+      - plant_data:/var/lib/plant_bot
+    pull_policy: every_1h
+    restart: unless-stopped
+    container_name: plant_bot
+    secrets:
+      - plant_token
+    network_mode: "host"
+
+secrets:
+  plant_token:
+    file: ./token.txt
+
+volumes:
+  plant_data:

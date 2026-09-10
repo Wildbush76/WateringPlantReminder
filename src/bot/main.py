@@ -3,8 +3,6 @@ import logging
 # logging
 import sys
 
-import dotenv
-
 from .discord_bot.discord_logger_handler import DiscordHandler
 from .discord_bot.plant_bot import plant_bot
 
@@ -23,7 +21,6 @@ def _setup_logger():
 
 
 def run_bot() -> None:
-    dotenv.load_dotenv()
     _setup_logger()
 
     bot = plant_bot()
@@ -33,4 +30,8 @@ def run_bot() -> None:
     discord_handler.setLevel(logging.ERROR)
     logging.getLogger().addHandler(discord_handler)
 
-    bot.run(log_handler=None)
+    # Load the token
+    with open("/run/secrets/plant_token") as file:
+        token = file.read()
+
+    bot.run(token=token, log_handler=None)
