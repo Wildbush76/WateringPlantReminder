@@ -9,3 +9,4 @@ __pycache__/
 data.csv
 .gitignore
 .vscode
+token.txt
