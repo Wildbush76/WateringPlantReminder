@@ -27,7 +27,7 @@ class plant_bot(discord.Client):
 
         intents = discord.Intents.default()
 
-        super().__init__(intents=intents)
+        super().__init__(intents=intents, status=discord.Status.online)
 
     async def _device_callback(self, device: BleakClient) -> None:
         _bytes = await device.read_gatt_char(self._settings.characteristicUUID)
@@ -64,6 +64,12 @@ class plant_bot(discord.Client):
             )
         )
         await tree.sync()
+
+        await self.change_presence(
+            activity=discord.Activity(
+                name="Planting", type=discord.ActivityType.playing
+            )
+        )
 
         self._logger.info(f"{'-' * 10}Bot Started{'-' * 10}")
 
