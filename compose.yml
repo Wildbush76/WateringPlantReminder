@@ -15,6 +15,7 @@ services:
     container_name: plant_bot
     secrets:
       - plant_token
+    network_mode: "host"
 
 secrets:
   plant_token:
