@@ -10,6 +10,7 @@ services:
       - DATA_FILE=/var/lib/plant_bot/data.csv
     volumes:
       - /var/run/dbus:/var/run/dbus
+      - plant_data:/var/lib/plant_bot
     pull_policy: every_1h
     restart: unless-stopped
     container_name: plant_bot
@@ -20,3 +21,6 @@ services:
 secrets:
   plant_token:
     file: ./token.txt
+
+volumes:
+  plant_data:
