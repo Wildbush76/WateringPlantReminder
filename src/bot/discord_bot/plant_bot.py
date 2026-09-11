@@ -71,7 +71,7 @@ class plant_bot(discord.Client):
             )
         )
 
-        self._logger.info(f"{'-' * 10}Bot Started{'-' * 10}")
+        self._logger.info(f"{'-' * 10}Plant Bot Started{'-' * 10}")
 
     async def graph(self, interaction: discord.Interaction) -> None:
         # embed.set_image

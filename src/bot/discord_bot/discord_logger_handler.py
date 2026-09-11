@@ -24,6 +24,7 @@ class DiscordHandler(Handler):
                 self._user = await self._client.fetch_user(self._user)
 
             color = discord.Color.light_gray()
+            error = False
 
             match record.levelname.upper():
                 case "INFO":
@@ -32,14 +33,22 @@ class DiscordHandler(Handler):
                     color = discord.Color.yellow()
                 case "ERROR":
                     color = discord.Color.red()
+                    error = True
                 case "CRITICAL":
                     color = discord.Color.dark_red()
+                    error = True
+
+            if error:
+                description = f"{record.message} -> {record.exc_text}"
+            else:
+                description = record.message
 
             embed = Embed(
                 color=color,
                 title=f"{record.module}:{record.levelname}",
-                description=record.message,
+                description=description,
             )
+
             await self._user.send(embed=embed)
         except Exception as e:  # noqa: BLE001
             print(f"ERROR discordHandler {e}")  # logging isnt working so have to print
