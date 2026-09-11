@@ -65,7 +65,7 @@ class plant_bot(discord.Client):
             self._first_on_ready = False
 
             self._logger.info("Starting BLE")
-            # await self._ble_server.start()
+            await self._ble_server.start()
 
             self._logger.info("Registering Commands")
             await self._register_commands()
