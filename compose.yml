@@ -7,7 +7,7 @@ services:
     image: ghcr.io/wildbush76/plant_bot:latest
 
     environment:
-      - DATA_FILE=/var/lib/plant_bot/data.csv
+      - DATA_PATH=/var/lib/plant_bot/
     volumes:
       - /var/run/dbus:/var/run/dbus
       - plant_data:/var/lib/plant_bot

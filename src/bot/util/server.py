@@ -14,11 +14,11 @@ class Server:
             return
         await self.stop()
 
-        self._logger.info(f"Trying to connect to {device.name} @ {device.address}")
+        self._logger.debug(f"Trying to connect to {device.name} @ {device.address}")
         try:
             async with BleakClient(device.address) as client:
                 if client.is_connected:
-                    self._logger.info(f"Connected to {device.name}")
+                    self._logger.debug(f"Connected to {device.name}")
                     await self._device_callback(client)
 
         except Exception as e:
@@ -40,13 +40,13 @@ class Server:
         if self._scanning:
             return
 
-        self._logger.info("Starting Scanning BLE")
+        self._logger.debug("Starting Scanning BLE")
         self._scanning = True
         await self._scanner.start()
 
     async def stop(self) -> None:
         if not self._scanning:
             return
-        self._logger.info("Stopping Scanning BLE")
+        self._logger.debug("Stopping Scanning BLE")
         self._scanning = False
         await self._scanner.stop()

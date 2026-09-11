@@ -3,7 +3,6 @@ import logging
 # logging
 import sys
 
-from .discord_bot.discord_logger_handler import DiscordHandler
 from .discord_bot.plant_bot import plant_bot
 
 
@@ -24,11 +23,6 @@ def run_bot() -> None:
     _setup_logger()
 
     bot = plant_bot()
-
-    wildbush: int = 704773768035172726
-    discord_handler = DiscordHandler(bot, wildbush)
-    discord_handler.setLevel(logging.ERROR)
-    logging.getLogger().addHandler(discord_handler)
 
     # Load the token
     with open("/run/secrets/plant_token") as file:

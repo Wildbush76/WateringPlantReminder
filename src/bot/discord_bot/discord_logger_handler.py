@@ -9,46 +9,59 @@ from discord.embeds import Embed
 class DiscordHandler(Handler):
     def __init__(self, discord_client: discord.Client, target_user: int):
         self._client: discord.Client = discord_client
-        self._user: int | discord.User = target_user
+        self._target_id: int | discord.User = target_user
 
         super().__init__()
 
     @override
     def emit(self, record: LogRecord) -> None:
         if not self._client.is_closed():
-            asyncio.ensure_future(self._send_message(record))
+            asyncio.create_task(self._send_record(record))
 
-    async def _send_message(self, record: LogRecord) -> None:
+    async def _send_message(self, title: str, message: str, color: discord.Color):
+        if self._client.is_closed():
+            return
+
         try:
-            if isinstance(self._user, int):
-                self._user = await self._client.fetch_user(self._user)
-
-            color = discord.Color.light_gray()
-            error = False
-
-            match record.levelname.upper():
-                case "INFO":
-                    color = discord.Color.blue()
-                case "WARNING":
-                    color = discord.Color.yellow()
-                case "ERROR":
-                    color = discord.Color.red()
-                    error = True
-                case "CRITICAL":
-                    color = discord.Color.dark_red()
-                    error = True
-
-            if error:
-                description = f"{record.message} -> {record.exc_text}"
-            else:
-                description = record.message
+            if isinstance(self._target_id, int):
+                self._target_id = await self._client.fetch_user(self._target_id)
 
             embed = Embed(
                 color=color,
-                title=f"{record.module}:{record.levelname}",
-                description=description,
+                title=title,
+                description=message,
             )
 
-            await self._user.send(embed=embed)
+            await self._target_id.send(embed=embed)
+
         except Exception as e:  # noqa: BLE001
-            print(f"ERROR discordHandler {e}")  # logging isnt working so have to print
+            print(f"ERROR-discordHandler {e}")  # logging isnt working so have to print
+
+    async def info(self, title: str, message: str):
+        await self._send_message(title, message, discord.Color.blue())
+
+    async def warning(self, title: str, message: str):
+        await self._send_message(title, message, discord.Color.yellow())
+
+    async def error(self, title: str, message: str):
+        await self._send_message(title, message, discord.Color.red())
+
+    async def critical(self, title: str, message: str):
+        await self._send_message(title, message, discord.Color.dark_red())
+
+    async def _send_record(self, record: LogRecord) -> None:
+
+        title = f"{record.module}:{record.levelname}"
+        description = record.message
+
+        match record.levelname.upper():
+            case "INFO":
+                await self.info(title, description)
+            case "WARNING":
+                await self.warning(title, description)
+            case "ERROR":
+                description += f" -> {record.exc_text}"
+                await self.error(title, description)
+            case "CRITICAL":
+                description += f" -> {record.exc_text}"
+                await self.critical(title, description)
