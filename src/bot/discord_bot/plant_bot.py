@@ -114,7 +114,7 @@ class plant_bot(discord.Client):
         await self.close()
 
     async def graph(self, interaction: discord.Interaction) -> None:
-        await self._logger.info("Creating graph")
+        self._logger.info("Creating graph")
         graph = await create_graph(self._settings.data_file)
 
         if graph is None:
