@@ -8,6 +8,7 @@ import aiofiles
 import discord
 from bleak import BleakClient
 from discord.app_commands import Command
+from discord.ext import tasks
 
 from ..util.grapher import create_graph
 from ..util.server import Server
@@ -22,6 +23,9 @@ class plant_bot(discord.Client):
             self._device_callback, self._settings.serviceUUID
         )
         self._first_on_ready: bool = True
+        self._last_read_time: float = time.time()
+        self._PROBE_WARN_TIME = 60 * 60  # Warn if we haven't got a reading in an hour
+        self._tasks: list[tasks.Loop] = []
 
         # setup logging
         self._logger = logging.getLogger()
@@ -48,6 +52,7 @@ class plant_bot(discord.Client):
             )
 
     async def _process_reading(self, reading: int):
+        self._last_read_time = time.time()
         await self._log_reading(reading)
 
     async def _log_reading(self, reading: int):
@@ -69,6 +74,9 @@ class plant_bot(discord.Client):
 
             self._logger.info("Registering Commands")
             await self._register_commands()
+
+            self._logger.info("Start tasks")
+            await self._setup_tasks()
 
             self._logger.info("Setting Up Signal Logger")
             loop = asyncio.get_event_loop()
@@ -107,10 +115,32 @@ class plant_bot(discord.Client):
         )
         await tree.sync()
 
+    async def _setup_tasks(self):
+        tasks.loop
+        self._tasks.append(
+            tasks.Loop(
+                self._check_probe,
+                seconds=0,
+                minutes=0,
+                hours=1,
+                time=discord.utils.MISSING,
+                count=None,
+                reconnect=True,
+                name=None,
+            )
+        )
+
+        for task in self._tasks:
+            task.start()
+
     async def shutdown(self):
         self._logger.info("Shutting down")
         await self._discord_logger.info(title="Bot-Status", message="Bot shutting down")
         await self._ble_server.stop()
+
+        for task in self._tasks:
+            task.stop()
+
         await self.close()
 
     async def graph(self, interaction: discord.Interaction) -> None:
@@ -142,3 +172,12 @@ class plant_bot(discord.Client):
         file = discord.File(logs)
 
         await interaction.response.send_message(content="LOGS", file=file)
+
+    async def _check_probe(self):
+        time_since = time.time() - self._last_read_time
+
+        if time_since > self._PROBE_WARN_TIME:
+            await self._discord_logger.warning(
+                title="PROBE TIMEOUT",
+                message=f"It has been {time_since}s since a reading from the probe. Its battery may be dead",
+            )

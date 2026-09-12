@@ -17,6 +17,7 @@ services:
     secrets:
       - plant_token
     network_mode: "host"
+    privileged: true 
 
 secrets:
   plant_token:

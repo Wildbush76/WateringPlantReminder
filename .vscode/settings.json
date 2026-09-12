@@ -6,5 +6,8 @@
             "source.fixAll.ruff": "explicit",
             "source.organizeImports.ruff": "explicit"
         }
-    }
+    },
+    "cSpell.words": [
+        "nacl"
+    ]
 }
