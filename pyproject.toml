@@ -1,7 +1,7 @@
 [project]
 name = "bot"
 version = "0.1.0"
-description = "Add your description here"
+description = "Monitors the plants"
 readme = "README.md"
 authors = [
     { name = "Wildbush", email = "75509166+Wildbush76@users.noreply.github.com" },
@@ -18,12 +18,10 @@ dependencies = [
 
 [project.scripts]
 bot = "bot:run_bot"
-test_server = "bot:test_server"
-graph = "bot:graph_test"
 
 [build-system]
-requires = ["uv_build>=0.12.10,<0.13.0"]
-build-backend = "uv_build"
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
 
 [dependency-groups]
 dev = ["ruff>=0.16.6"]

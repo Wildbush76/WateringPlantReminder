@@ -1,22 +1,27 @@
-FROM python:3.13-slim-trixie
+FROM python:3.13-slim-trixie AS builder
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PYTHON_DOWNLOADS=never
+
+WORKDIR /app
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --no-dev --locked --no-editable --no-install-project
+
+COPY README.md src ./
+RUN uv sync --no-dev --locked --no-editable
+
+#Part 2
+FROM python:3.13-slim-trixie AS runtime
+COPY --from=builder --chown=root:root /app/.venv /app/.venv
 VOLUME /var/lib/plant_bot
 
+RUN chmod -R o=rx /app
+
 RUN useradd -m app
-WORKDIR /app
-RUN chown app /app
-COPY . /app
-
-#setup storage volume
-RUN mkdir /var/lib/plant_bot
-RUN chown app /var/lib/plant_bot
-
-
 USER app
 
-ENV UV_NO_DEV=1
-RUN uv sync --locked
-
-
-#start the bot
-CMD ["uv","run","bot"]
+ENV PYTHONPATH=/app/.venv/lib/python3.13/site-packages
+CMD ["python", "-m", "bot"]
