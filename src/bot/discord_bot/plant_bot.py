@@ -2,6 +2,7 @@ import asyncio
 import logging
 import signal
 import time
+from pathlib import Path
 from typing import override
 
 import aiofiles
@@ -101,7 +102,7 @@ class plant_bot(discord.Client):
         tree.add_command(
             Command(
                 name="create_graph",
-                callback=self.graph,
+                callback=self._create_graph,
                 description="Creates a graph of logged data",
             )
         )
@@ -109,17 +110,16 @@ class plant_bot(discord.Client):
         tree.add_command(
             Command(
                 name="log_dump",
-                callback=self.log_dump,
+                callback=self._log_dump,
                 description="Outputs the log file",
             )
         )
         await tree.sync()
 
     async def _setup_tasks(self):
-        tasks.loop
         self._tasks.append(
             tasks.Loop(
-                self._check_probe,
+                self._check_probe_alive,
                 seconds=0,
                 minutes=0,
                 hours=1,
@@ -143,7 +143,18 @@ class plant_bot(discord.Client):
 
         await self.close()
 
-    async def graph(self, interaction: discord.Interaction) -> None:
+    async def _check_probe_alive(self):
+        time_since = time.time() - self._last_read_time
+
+        if time_since > self._PROBE_WARN_TIME:
+            await self._discord_logger.warning(
+                title="PROBE TIMEOUT",
+                message=f"It has been {time_since}s since a reading from the probe. Its battery may be dead",
+            )
+
+    # ---------------------Commands--------------------
+
+    async def _create_graph(self, interaction: discord.Interaction) -> None:
         self._logger.info("Creating graph")
         graph = await create_graph(self._settings.data_file)
 
@@ -161,23 +172,20 @@ class plant_bot(discord.Client):
 
         await interaction.response.send_message(embed=embed, file=file)
 
-    async def log_dump(self, interaction: discord.Interaction):
-        self._logger.info("Dumping logs")
-        logs = self._settings.log_file
-        if not logs.is_file():
-            await interaction.response.send_message("No log file found!")
-            self._logger.warning("No log file found")
+    async def _send_file(
+        self, interaction: discord.Interaction, file: Path, message: str = None
+    ):
+        if file.is_file():
+            await interaction.response.send_message(f"File: {file.name} not found!")
+            self._logger.warning(f"Send-File: Failed to file file: {file.name}")
             return
+        file = discord.File(file)
+        await interaction.response.send_message(content=message, file=file)
 
-        file = discord.File(logs)
+    async def _data_dump(self, interaction: discord.Interaction):
+        self._logger.info("Dumping data")
+        self._send_file(interaction, self._settings.data_file, "Data file")
 
-        await interaction.response.send_message(content="LOGS", file=file)
-
-    async def _check_probe(self):
-        time_since = time.time() - self._last_read_time
-
-        if time_since > self._PROBE_WARN_TIME:
-            await self._discord_logger.warning(
-                title="PROBE TIMEOUT",
-                message=f"It has been {time_since}s since a reading from the probe. Its battery may be dead",
-            )
+    async def _log_dump(self, interaction: discord.Interaction):
+        self._logger.info("Dumping logs")
+        self._send_file(interaction, self._settings.log_file, "Log file")
