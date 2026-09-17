@@ -30,9 +30,16 @@ class plant_bot(discord.Client):
 
         # setup logging
         self._logger = logging.getLogger()
-        self._logger.addHandler(logging.FileHandler(self._settings.log_file))
+        log_format = logging.Formatter(
+            fmt="%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+        )
+
+        file_handler = logging.FileHandler(self._settings.log_file)
+        file_handler.setFormatter(log_format)
+        self._logger.addHandler(file_handler)
         self._discord_logger = DiscordHandler(self, self._settings.owner)
         self._discord_logger.setLevel(logging.ERROR)
+        self._discord_logger.setFormatter(log_format)
         self._logger.addHandler(self._discord_logger)
 
         # setup discord bot
