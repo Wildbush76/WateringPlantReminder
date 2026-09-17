@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import signal
@@ -15,6 +17,16 @@ from ..util.grapher import create_graph
 from ..util.server import Server
 from .bot_settings import PlantSettings
 from .discord_logger_handler import DiscordHandler
+
+
+async def _owner_only(self, func: callable[(plant_bot, discord.Interaction), None]):
+    def wrapper(self: plant_bot, interaction: discord.Interaction):
+        if interaction.user.id == self._settings.owner:
+            func(self, interaction)
+        else:
+            self._logger.warning(
+                f"Unauthorized user {interaction.user.name} attempting to run command: {func.__name__} "
+            )
 
 
 class plant_bot(discord.Client):
@@ -121,6 +133,22 @@ class plant_bot(discord.Client):
                 description="Outputs the log file",
             )
         )
+
+        tree.add_command(
+            Command(
+                name="clear_logs",
+                callback=self._clear_logs,
+                description="Clears the log file",
+            )
+        )
+
+        tree.add_command(
+            Command(
+                name="clear_data",
+                callback=self._clear_data,
+                description="Clears the data file",
+            )
+        )
         await tree.sync()
 
     async def _setup_tasks(self):
@@ -189,10 +217,30 @@ class plant_bot(discord.Client):
         file = discord.File(file)
         await interaction.response.send_message(content=message, file=file)
 
+    @_owner_only
     async def _data_dump(self, interaction: discord.Interaction):
         self._logger.info("Dumping data")
         self._send_file(interaction, self._settings.data_file, "Data file")
 
+    @_owner_only
     async def _log_dump(self, interaction: discord.Interaction):
         self._logger.info("Dumping logs")
         self._send_file(interaction, self._settings.log_file, "Log file")
+
+    @_owner_only
+    async def _clear_logs(self, interaction: discord.Interaction):
+        if self._settings.log_file.is_file():
+            self._settings.log_file.unlink()
+            await interaction.response.send_message(content="Logs cleared")
+        else:
+            await interaction.response.send_message("No logs found")
+        self._logger.info("Clearing logs")
+
+    @_owner_only
+    async def _clear_data(self, interaction: discord.Interaction):
+        if self._settings.data_file.is_file():
+            self._settings.data_file.unlink()
+            await interaction.response.send_message(content="Data cleared")
+        else:
+            await interaction.response.send_message("No data file found")
+        self._logger.info("Clearing data")
