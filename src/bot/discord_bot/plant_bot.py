@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 import signal
 import time
@@ -20,9 +21,10 @@ from .discord_logger_handler import DiscordHandler
 
 
 def _owner_only(func: callable[(PlantBot, discord.Interaction), None]):
-    async def wrapper(self: PlantBot, interaction: discord.Interaction):
+    @functools.wraps(func)
+    async def wrapper(self: PlantBot, interaction: discord.Interaction) -> None:
         if interaction.user.id == self._settings.owner:
-            func(self, interaction)
+            await func(self, interaction)
         else:
             self._logger.warning(
                 f"Unauthorized user {interaction.user.name} attempting to run command: {func.__name__} "
@@ -32,6 +34,8 @@ def _owner_only(func: callable[(PlantBot, discord.Interaction), None]):
 
 
 class PlantBot(discord.Client):
+    _PROBE_WARN_TIME = 60 * 60  # Warn if its been > this time since reading a value
+
     def __init__(self):
         self._settings: PlantSettings = PlantSettings()
         self._ble_server: Server = Server(
@@ -39,7 +43,6 @@ class PlantBot(discord.Client):
         )
         self._first_on_ready: bool = True
         self._last_read_time: float = time.time()
-        self._PROBE_WARN_TIME = 60 * 60  # Warn if we haven't got a reading in an hour
         self._tasks: list[tasks.Loop] = []
 
         self._data_processor = DataProcessor(self._settings.data_file)
@@ -102,6 +105,8 @@ class PlantBot(discord.Client):
                 loop.add_signal_handler(
                     sig, lambda: asyncio.create_task(self.shutdown())
                 )
+
+            await self._discord_logger.info(title="Bot Status", message="Bot Startup!")
 
         self._logger.info(self._logging_header("on_ready Exit"))
         self._logger.info("Bot Started")
@@ -227,10 +232,12 @@ class PlantBot(discord.Client):
         self._logger.info("Dumping data")
         await self._send_file(interaction, self._settings.data_file, "Data file")
 
+    @_owner_only
     async def _log_dump(self, interaction: discord.Interaction):
         self._logger.info("Dumping logs")
         await self._send_file(interaction, self._settings.log_file, "Log file")
 
+    @_owner_only
     async def _clear_logs(self, interaction: discord.Interaction):
         if self._settings.log_file.exists():
             self._settings.log_file.unlink()
@@ -239,6 +246,7 @@ class PlantBot(discord.Client):
             await interaction.response.send_message("No logs found")
         self._logger.info("Clearing logs")
 
+    @_owner_only
     async def _clear_data(self, interaction: discord.Interaction):
         if self._settings.data_file.exists():
             self._settings.data_file.unlink()

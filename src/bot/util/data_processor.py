@@ -4,8 +4,6 @@ from pathlib import Path
 
 import aiofiles
 
-# TODO replace csv with a better datatype or just make this code cleaner
-
 
 class DataProcessor:
     WINDOW_SiZE = 10
