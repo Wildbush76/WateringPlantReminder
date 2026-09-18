@@ -7,20 +7,20 @@ import time
 from pathlib import Path
 from typing import override
 
-import aiofiles
 import discord
 from bleak import BleakClient
 from discord.app_commands import Command
 from discord.ext import tasks
 
+from ..util.data_processor import DataProcessor
 from ..util.grapher import create_graph
 from ..util.server import Server
 from .bot_settings import PlantSettings
 from .discord_logger_handler import DiscordHandler
 
 
-async def _owner_only(self, func: callable[(plant_bot, discord.Interaction), None]):
-    def wrapper(self: plant_bot, interaction: discord.Interaction):
+async def _owner_only(self, func: callable[(PlantBot, discord.Interaction), None]):
+    def wrapper(self: PlantBot, interaction: discord.Interaction):
         if interaction.user.id == self._settings.owner:
             func(self, interaction)
         else:
@@ -29,7 +29,7 @@ async def _owner_only(self, func: callable[(plant_bot, discord.Interaction), Non
             )
 
 
-class plant_bot(discord.Client):
+class PlantBot(discord.Client):
     def __init__(self):
         self._settings: PlantSettings = PlantSettings()
         self._ble_server: Server = Server(
@@ -39,6 +39,8 @@ class plant_bot(discord.Client):
         self._last_read_time: float = time.time()
         self._PROBE_WARN_TIME = 60 * 60  # Warn if we haven't got a reading in an hour
         self._tasks: list[tasks.Loop] = []
+
+        self._data_processor = DataProcessor(self._settings.data_file)
 
         # setup logging
         self._logger = logging.getLogger()
@@ -65,19 +67,12 @@ class plant_bot(discord.Client):
         if _bytes is not None:
             reading = int.from_bytes(_bytes, byteorder="little")
 
-            asyncio.create_task(self._process_reading(reading))
+            await self._data_processor.process_reading(reading)
+
         else:
             self._logger.warning(
                 f"Failed to read characteristicUUID : {self._settings.characteristicUUID}"
             )
-
-    async def _process_reading(self, reading: int):
-        self._last_read_time = time.time()
-        await self._log_reading(reading)
-
-    async def _log_reading(self, reading: int):
-        async with aiofiles.open(self._settings.data_file, mode="a") as file:
-            await file.write(f"{time.time()},{reading}\n")
 
     def run(self, token: str, *args, **kwargs) -> None:
         super().run(token, *args, **kwargs)
@@ -184,7 +179,7 @@ class plant_bot(discord.Client):
         if time_since > self._PROBE_WARN_TIME:
             await self._discord_logger.warning(
                 title="PROBE TIMEOUT",
-                message=f"It has been {time_since}s since a reading from the probe. Its battery may be dead",
+                message=f"It has been {round(time_since)}s since a reading from the probe. Its battery may be dead",
             )
 
     # ---------------------Commands--------------------

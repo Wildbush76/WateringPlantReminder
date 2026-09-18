@@ -3,7 +3,7 @@ import logging
 # logging
 import sys
 
-from .discord_bot.plant_bot import plant_bot
+from .discord_bot.plant_bot import PlantBot
 
 
 def _setup_logger():
@@ -22,7 +22,7 @@ def _setup_logger():
 def run_bot() -> None:
     _setup_logger()
 
-    bot = plant_bot()
+    bot = PlantBot()
 
     # Load the token
     with open("/run/secrets/plant_token") as file:
