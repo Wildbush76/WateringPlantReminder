@@ -26,6 +26,9 @@ def _owner_only(func: callable[(PlantBot, discord.Interaction), None]):
         if interaction.user.id == self._settings.owner:
             await func(self, interaction)
         else:
+            await interaction.response.send_message(
+                "You are not authorized to use this command."
+            )
             self._logger.warning(
                 f"Unauthorized user {interaction.user.name} attempting to run command: {func.__name__} "
             )
@@ -219,7 +222,7 @@ class PlantBot(discord.Client):
         await interaction.response.send_message(embed=embed, file=file)
 
     async def _send_file(
-        self, interaction: discord.Interaction, file: Path, message: str = None
+        self, interaction: discord.Interaction, file: Path, message: str | None = None
     ):
         if file.exists():
             await interaction.response.send_message(f"File: {file.name} not found!")
