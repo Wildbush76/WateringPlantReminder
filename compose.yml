@@ -4,6 +4,7 @@ services:
       context: .
       platforms:
         - linux/arm64
+        - linux/amd64
     image: ghcr.io/wildbush76/plant_bot:latest
 
     environment:

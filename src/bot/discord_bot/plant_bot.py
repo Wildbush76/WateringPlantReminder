@@ -19,14 +19,16 @@ from .bot_settings import PlantSettings
 from .discord_logger_handler import DiscordHandler
 
 
-async def _owner_only(self, func: callable[(PlantBot, discord.Interaction), None]):
-    def wrapper(self: PlantBot, interaction: discord.Interaction):
+def _owner_only(func: callable[(PlantBot, discord.Interaction), None]):
+    async def wrapper(self: PlantBot, interaction: discord.Interaction):
         if interaction.user.id == self._settings.owner:
             func(self, interaction)
         else:
             self._logger.warning(
                 f"Unauthorized user {interaction.user.name} attempting to run command: {func.__name__} "
             )
+
+    return wrapper
 
 
 class PlantBot(discord.Client):
@@ -63,6 +65,7 @@ class PlantBot(discord.Client):
         super().__init__(intents=intents, status=discord.Status.online)
 
     async def _device_callback(self, device: BleakClient) -> None:
+        self._last_read_time = time.time()
         _bytes = await device.read_gatt_char(self._settings.characteristicUUID)
         if _bytes is not None:
             reading = int.from_bytes(_bytes, byteorder="little")
@@ -126,6 +129,14 @@ class PlantBot(discord.Client):
                 name="log_dump",
                 callback=self._log_dump,
                 description="Outputs the log file",
+            )
+        )
+
+        tree.add_command(
+            Command(
+                name="data_dump",
+                callback=self._data_dump,
+                description="outputs the data file",
             )
         )
 
@@ -205,35 +216,31 @@ class PlantBot(discord.Client):
     async def _send_file(
         self, interaction: discord.Interaction, file: Path, message: str = None
     ):
-        if file.is_file():
+        if file.exists():
             await interaction.response.send_message(f"File: {file.name} not found!")
             self._logger.warning(f"Send-File: Failed to file file: {file.name}")
             return
         file = discord.File(file)
         await interaction.response.send_message(content=message, file=file)
 
-    @_owner_only
     async def _data_dump(self, interaction: discord.Interaction):
         self._logger.info("Dumping data")
-        self._send_file(interaction, self._settings.data_file, "Data file")
+        await self._send_file(interaction, self._settings.data_file, "Data file")
 
-    @_owner_only
     async def _log_dump(self, interaction: discord.Interaction):
         self._logger.info("Dumping logs")
-        self._send_file(interaction, self._settings.log_file, "Log file")
+        await self._send_file(interaction, self._settings.log_file, "Log file")
 
-    @_owner_only
     async def _clear_logs(self, interaction: discord.Interaction):
-        if self._settings.log_file.is_file():
+        if self._settings.log_file.exists():
             self._settings.log_file.unlink()
             await interaction.response.send_message(content="Logs cleared")
         else:
             await interaction.response.send_message("No logs found")
         self._logger.info("Clearing logs")
 
-    @_owner_only
     async def _clear_data(self, interaction: discord.Interaction):
-        if self._settings.data_file.is_file():
+        if self._settings.data_file.exists():
             self._settings.data_file.unlink()
             await interaction.response.send_message(content="Data cleared")
         else:

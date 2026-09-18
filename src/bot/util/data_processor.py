@@ -4,6 +4,8 @@ from pathlib import Path
 
 import aiofiles
 
+# TODO replace csv with a better datatype or just make this code cleaner
+
 
 class DataProcessor:
     WINDOW_SiZE = 10
@@ -15,33 +17,38 @@ class DataProcessor:
 
     def _load_averaging_window(self):
         self._window = deque()
-        if not self._data_file.is_file():
-            for _ in range(self.WINDOW_SiZE):
-                self._window.append(0)
+        if not self._data_file.exists():
             return
 
         with open(self._data_file, "r") as file:
-            data = file.read().split("\n")[-self.WINDOW_SiZE : 0]
+            rows = file.read().strip().split("\n")[1:]
+
+            v = min(self.WINDOW_SiZE, len(rows))
+
+            data = rows[-v:]
+            data = [d.split(",")[1] for d in data]
+
             for d in data:
-                self._window.append(d[1])
+                self._window.append(float(d))
 
     async def _get_windowed_average(self, value: int) -> float:
         self._window.append(value)
-        self._window.popleft()
+        if len(self._window) > self.WINDOW_SiZE:
+            self._window.popleft()
 
         average = sum(self._window) / len(self._window)
         return average
 
     async def process_reading(self, value: int) -> None:
         self._last_read_time = time.time()
-        averaged = self._get_windowed_average(value)
+        averaged = await self._get_windowed_average(value)
 
         await self._log_reading(value, averaged)
 
     async def _log_reading(self, reading: int, averaged: float) -> None:
-        new_file = not self._data_file.is_file()
+        new_file = not self._data_file.exists()
 
         async with aiofiles.open(self._data_file, mode="a") as file:
             if new_file:
-                await file.write("Timestamp,Raw_Values,Averaged")  # Headers
+                await file.write("Timestamp,Raw_Values,Averaged\n")  # Headers
             await file.write(f"{time.time()},{reading},{averaged}\n")
