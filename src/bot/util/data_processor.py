@@ -50,3 +50,10 @@ class DataProcessor:
             if new_file:
                 await file.write("Timestamp,Raw_Values,Averaged\n")  # Headers
             await file.write(f"{time.time()},{reading},{averaged}\n")
+
+    async def delete_data(self) -> bool:
+        if not self._data_file.exists():
+            return False
+
+        self._data_file.unlink()
+        self._window.clear()
