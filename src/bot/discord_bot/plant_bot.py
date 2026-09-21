@@ -1,22 +1,44 @@
+from __future__ import annotations
+
 import asyncio
+import functools
 import logging
 import signal
 import time
+from pathlib import Path
 from typing import override
 
-import aiofiles
 import discord
 from bleak import BleakClient
 from discord.app_commands import Command
 from discord.ext import tasks
 
+from ..util.data_processor import DataProcessor
 from ..util.grapher import create_graph
 from ..util.server import Server
 from .bot_settings import PlantSettings
 from .discord_logger_handler import DiscordHandler
 
 
-class plant_bot(discord.Client):
+def _owner_only(func: callable[(PlantBot, discord.Interaction), None]):
+    @functools.wraps(func)
+    async def wrapper(self: PlantBot, interaction: discord.Interaction) -> None:
+        if interaction.user.id == self._settings.owner:
+            await func(self, interaction)
+        else:
+            await interaction.response.send_message(
+                "You are not authorized to use this command."
+            )
+            self._logger.warning(
+                f"Unauthorized user {interaction.user.name} attempting to run command: {func.__name__} "
+            )
+
+    return wrapper
+
+
+class PlantBot(discord.Client):
+    _PROBE_WARN_TIME = 60 * 60  # Warn if its been > this time since reading a value
+
     def __init__(self):
         self._settings: PlantSettings = PlantSettings()
         self._ble_server: Server = Server(
@@ -24,14 +46,22 @@ class plant_bot(discord.Client):
         )
         self._first_on_ready: bool = True
         self._last_read_time: float = time.time()
-        self._PROBE_WARN_TIME = 60 * 60  # Warn if we haven't got a reading in an hour
         self._tasks: list[tasks.Loop] = []
+
+        self._data_processor = DataProcessor(self._settings.data_file)
 
         # setup logging
         self._logger = logging.getLogger()
-        self._logger.addHandler(logging.FileHandler(self._settings.log_file))
+        log_format = logging.Formatter(
+            fmt="%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+        )
+
+        file_handler = logging.FileHandler(self._settings.log_file)
+        file_handler.setFormatter(log_format)
+        self._logger.addHandler(file_handler)
         self._discord_logger = DiscordHandler(self, self._settings.owner)
         self._discord_logger.setLevel(logging.ERROR)
+        self._discord_logger.setFormatter(log_format)
         self._logger.addHandler(self._discord_logger)
 
         # setup discord bot
@@ -41,23 +71,17 @@ class plant_bot(discord.Client):
         super().__init__(intents=intents, status=discord.Status.online)
 
     async def _device_callback(self, device: BleakClient) -> None:
+        self._last_read_time = time.time()
         _bytes = await device.read_gatt_char(self._settings.characteristicUUID)
         if _bytes is not None:
             reading = int.from_bytes(_bytes, byteorder="little")
 
-            asyncio.create_task(self._process_reading(reading))
+            await self._data_processor.process_reading(reading)
+
         else:
             self._logger.warning(
                 f"Failed to read characteristicUUID : {self._settings.characteristicUUID}"
             )
-
-    async def _process_reading(self, reading: int):
-        self._last_read_time = time.time()
-        await self._log_reading(reading)
-
-    async def _log_reading(self, reading: int):
-        async with aiofiles.open(self._settings.data_file, mode="a") as file:
-            await file.write(f"{time.time()},{reading}\n")
 
     def run(self, token: str, *args, **kwargs) -> None:
         super().run(token, *args, **kwargs)
@@ -85,6 +109,8 @@ class plant_bot(discord.Client):
                     sig, lambda: asyncio.create_task(self.shutdown())
                 )
 
+            await self._discord_logger.info(title="Bot Status", message="Bot Startup!")
+
         self._logger.info(self._logging_header("on_ready Exit"))
         self._logger.info("Bot Started")
 
@@ -101,7 +127,7 @@ class plant_bot(discord.Client):
         tree.add_command(
             Command(
                 name="create_graph",
-                callback=self.graph,
+                callback=self._create_graph,
                 description="Creates a graph of logged data",
             )
         )
@@ -109,17 +135,40 @@ class plant_bot(discord.Client):
         tree.add_command(
             Command(
                 name="log_dump",
-                callback=self.log_dump,
+                callback=self._log_dump,
                 description="Outputs the log file",
+            )
+        )
+
+        tree.add_command(
+            Command(
+                name="data_dump",
+                callback=self._data_dump,
+                description="outputs the data file",
+            )
+        )
+
+        tree.add_command(
+            Command(
+                name="clear_logs",
+                callback=self._clear_logs,
+                description="Clears the log file",
+            )
+        )
+
+        tree.add_command(
+            Command(
+                name="clear_data",
+                callback=self._clear_data,
+                description="Clears the data file",
             )
         )
         await tree.sync()
 
     async def _setup_tasks(self):
-        tasks.loop
         self._tasks.append(
             tasks.Loop(
-                self._check_probe,
+                self._check_probe_alive,
                 seconds=0,
                 minutes=0,
                 hours=1,
@@ -143,7 +192,18 @@ class plant_bot(discord.Client):
 
         await self.close()
 
-    async def graph(self, interaction: discord.Interaction) -> None:
+    async def _check_probe_alive(self):
+        time_since = time.time() - self._last_read_time
+
+        if time_since > self._PROBE_WARN_TIME:
+            await self._discord_logger.warning(
+                title="PROBE TIMEOUT",
+                message=f"It has been {round(time_since)}s since a reading from the probe. Its battery may be dead",
+            )
+
+    # ---------------------Commands--------------------
+
+    async def _create_graph(self, interaction: discord.Interaction) -> None:
         self._logger.info("Creating graph")
         graph = await create_graph(self._settings.data_file)
 
@@ -161,23 +221,38 @@ class plant_bot(discord.Client):
 
         await interaction.response.send_message(embed=embed, file=file)
 
-    async def log_dump(self, interaction: discord.Interaction):
-        self._logger.info("Dumping logs")
-        logs = self._settings.log_file
-        if not logs.is_file():
-            await interaction.response.send_message("No log file found!")
-            self._logger.warning("No log file found")
+    async def _send_file(
+        self, interaction: discord.Interaction, file: Path, message: str | None = None
+    ):
+        if not file.exists():
+            await interaction.response.send_message(f"File: {file.name} not found!")
+            self._logger.warning(f"Send-File: Failed to file file: {file.name}")
             return
+        file = discord.File(file)
+        await interaction.response.send_message(content=message, file=file)
 
-        file = discord.File(logs)
+    async def _data_dump(self, interaction: discord.Interaction):
+        self._logger.info("Dumping data")
+        await self._send_file(interaction, self._settings.data_file, "Data file")
 
-        await interaction.response.send_message(content="LOGS", file=file)
+    @_owner_only
+    async def _log_dump(self, interaction: discord.Interaction):
+        self._logger.info("Dumping logs")
+        await self._send_file(interaction, self._settings.log_file, "Log file")
 
-    async def _check_probe(self):
-        time_since = time.time() - self._last_read_time
+    @_owner_only
+    async def _clear_logs(self, interaction: discord.Interaction):
+        if self._settings.log_file.exists():
+            self._settings.log_file.unlink()
+            await interaction.response.send_message(content="Logs cleared")
+        else:
+            await interaction.response.send_message("No logs found")
+        self._logger.info("Clearing logs")
 
-        if time_since > self._PROBE_WARN_TIME:
-            await self._discord_logger.warning(
-                title="PROBE TIMEOUT",
-                message=f"It has been {time_since}s since a reading from the probe. Its battery may be dead",
-            )
+    @_owner_only
+    async def _clear_data(self, interaction: discord.Interaction):
+        self._logger.info("Clearing data")
+        if await self._data_processor.delete_data():
+            await interaction.response.send_message(content="Data cleared")
+        else:
+            await interaction.response.send_message("No data file found")

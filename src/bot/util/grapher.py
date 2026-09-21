@@ -15,31 +15,37 @@ async def create_graph(data_file: str) -> io.BytesIO | None:
         return
 
     try:
-        timestamps = []
-        values = []
+        values: list[list[float | str]] = []
         async with aiofiles.open(data_file, mode="r") as file:
+            headers = (await file.readline()).split(",")
+            values = [[header] for header in headers]
+
             line = await file.readline()
             while line:
-                time, value = line.split(",")
-                timestamps.append(float(time))
-                values.append(int(value))
+                for i, value in enumerate(line.split(",")):
+                    values[i].append(float(value))
                 line = await file.readline()
 
-        if len(timestamps) == 0:
+        if len(values) == 0:
             return None  # nothing to graph
         # edit the timestamps
-        epoch = timestamps[0]
+        epoch = values[0][1]
         SECONDS_PER_DAY = (60) * (60) * (24)
-        timestamps = [(t - epoch) / SECONDS_PER_DAY for t in timestamps]
+        timestamps = [(t - epoch) / SECONDS_PER_DAY for t in values[0][1:]]
 
-        plt.plot(timestamps, values, color="blue")
+        for value in values[1:]:
+            plt.plot(timestamps, value[1:], label=value[0])
+
         plt.grid(True)
         plt.title("Plant Soil Moisture")
+
         plt.xlabel("Time (Days)")
         plt.ylabel("Readings")
+        plt.legend()
         image = io.BytesIO()
 
         plt.savefig(image, format="png", bbox_inches="tight")
+        plt.close()
         image.seek(0)
         return image
 
