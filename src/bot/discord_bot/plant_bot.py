@@ -224,7 +224,7 @@ class PlantBot(discord.Client):
     async def _send_file(
         self, interaction: discord.Interaction, file: Path, message: str | None = None
     ):
-        if file.exists():
+        if not file.exists():
             await interaction.response.send_message(f"File: {file.name} not found!")
             self._logger.warning(f"Send-File: Failed to file file: {file.name}")
             return
