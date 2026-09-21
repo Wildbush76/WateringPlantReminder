@@ -57,3 +57,5 @@ class DataProcessor:
 
         self._data_file.unlink()
         self._window.clear()
+
+        return True

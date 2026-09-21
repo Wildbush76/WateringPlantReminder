@@ -252,7 +252,7 @@ class PlantBot(discord.Client):
     @_owner_only
     async def _clear_data(self, interaction: discord.Interaction):
         self._logger.info("Clearing data")
-        if self._data_processor.delete_data():
+        if await self._data_processor.delete_data():
             await interaction.response.send_message(content="Data cleared")
         else:
             await interaction.response.send_message("No data file found")
