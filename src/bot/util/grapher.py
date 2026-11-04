@@ -9,7 +9,6 @@ _logger = logging.getLogger(__name__)
 
 
 async def create_graph(data_file: str) -> io.BytesIO | None:
-    _logger.info("Creating graph")
     if not os.path.isfile(data_file):
         _logger.warning("Data file does not exist. Cannot make a graph")
         return

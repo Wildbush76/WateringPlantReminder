@@ -12,12 +12,12 @@ import discord
 from bleak import BleakClient
 from discord.app_commands import Command
 from discord.ext import tasks
+from discord.ext.logging import get_user_log_handler
 
 from ..util.data_processor import DataProcessor
 from ..util.grapher import create_graph
 from ..util.server import Server
 from .bot_settings import PlantSettings
-from .discord_logger_handler import DiscordHandler
 
 
 def _owner_only(func: callable[(PlantBot, discord.Interaction), None]):
@@ -59,8 +59,8 @@ class PlantBot(discord.Client):
         file_handler = logging.FileHandler(self._settings.log_file)
         file_handler.setFormatter(log_format)
         self._logger.addHandler(file_handler)
-        self._discord_logger = DiscordHandler(self, self._settings.owner)
-        self._discord_logger.setLevel(logging.ERROR)
+        self._discord_logger = get_user_log_handler(self, self._settings.owner)
+        self._discord_logger.setLevel(logging.INFO)
         self._discord_logger.setFormatter(log_format)
         self._logger.addHandler(self._discord_logger)
 
@@ -88,31 +88,31 @@ class PlantBot(discord.Client):
 
     @override
     async def on_ready(self) -> None:
-        self._logger.info(self._logging_header("on_ready Enter"))
+        self._logger.debug(self._logging_header("on_ready Enter"))
 
         if self._first_on_ready:
             self._first_on_ready = False
 
-            self._logger.info("Starting BLE")
+            self._logger.debug("Starting BLE")
             await self._ble_server.start()
 
-            self._logger.info("Registering Commands")
+            self._logger.debug("Registering Commands")
             await self._register_commands()
 
-            self._logger.info("Start tasks")
+            self._logger.debug("Start tasks")
             await self._setup_tasks()
 
-            self._logger.info("Setting Up Signal Logger")
+            self._logger.debug("Setting Up Signal Logger")
             loop = asyncio.get_event_loop()
             for sig in (signal.SIGTERM, signal.SIGINT):
                 loop.add_signal_handler(
                     sig, lambda: asyncio.create_task(self.shutdown())
                 )
 
-            await self._discord_logger.info(title="Bot Status", message="Bot Startup!")
+            await self._logger.info("Bot Startup!")
 
-        self._logger.info(self._logging_header("on_ready Exit"))
-        self._logger.info("Bot Started")
+        self._logger.debug(self._logging_header("on_ready Exit"))
+        self._logger.debug("Bot Started")
 
     def _logging_header(self, message: str) -> str:
         target_length = 40
@@ -184,7 +184,6 @@ class PlantBot(discord.Client):
 
     async def shutdown(self):
         self._logger.info("Shutting down")
-        await self._discord_logger.info(title="Bot-Status", message="Bot shutting down")
         await self._ble_server.stop()
 
         for task in self._tasks:
@@ -204,7 +203,7 @@ class PlantBot(discord.Client):
     # ---------------------Commands--------------------
 
     async def _create_graph(self, interaction: discord.Interaction) -> None:
-        self._logger.info("Creating graph")
+        self._logger.debug("Creating graph")
         graph = await create_graph(self._settings.data_file)
 
         if graph is None:
@@ -232,12 +231,12 @@ class PlantBot(discord.Client):
         await interaction.response.send_message(content=message, file=file)
 
     async def _data_dump(self, interaction: discord.Interaction):
-        self._logger.info("Dumping data")
+        self._logger.debug("Dumping data")
         await self._send_file(interaction, self._settings.data_file, "Data file")
 
     @_owner_only
     async def _log_dump(self, interaction: discord.Interaction):
-        self._logger.info("Dumping logs")
+        self._logger.debug("Dumping logs")
         await self._send_file(interaction, self._settings.log_file, "Log file")
 
     @_owner_only
@@ -247,11 +246,11 @@ class PlantBot(discord.Client):
             await interaction.response.send_message(content="Logs cleared")
         else:
             await interaction.response.send_message("No logs found")
-        self._logger.info("Clearing logs")
+        self._logger.debug("Clearing logs")
 
     @_owner_only
     async def _clear_data(self, interaction: discord.Interaction):
-        self._logger.info("Clearing data")
+        self._logger.debug("Clearing data")
         if await self._data_processor.delete_data():
             await interaction.response.send_message(content="Data cleared")
         else:

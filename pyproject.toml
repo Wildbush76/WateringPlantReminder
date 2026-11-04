@@ -6,11 +6,12 @@ readme = "README.md"
 authors = [
     { name = "Wildbush", email = "75509166+Wildbush76@users.noreply.github.com" },
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     "aiofiles>=25.1.0",
     "bleak>=3.0.2",
     "discord>=2.3.2",
+    "discord-py-logging>=0.1.0",
     "matplotlib>=3.11.1",
     "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
