@@ -68,7 +68,7 @@ class PlantBot(Bot):
         discord_logger = get_user_log_handler(self, self._settings.owner)
         discord_logger.setLevel(logging.INFO)
         discord_logger.setFormatter(log_format)
-        self._logger.addHandler(self._discord_logger)
+        self._logger.addHandler(discord_logger)
 
     async def _device_callback(self, device: BleakClient) -> None:
         self._last_read_time = time.time()
@@ -188,7 +188,7 @@ class PlantBot(Bot):
         time_since = time.time() - self._last_read_time
 
         if time_since > self._PROBE_WARN_TIME:
-            await self._discord_logger.warning(
+            await self._logger.warning(
                 title="PROBE TIMEOUT",
                 message=f"It has been {round(time_since)}s since a reading from the probe. Its battery may be dead",
             )
