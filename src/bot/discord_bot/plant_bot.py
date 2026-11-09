@@ -12,6 +12,7 @@ import discord
 from bleak import BleakClient
 from discord.app_commands import Command
 from discord.ext import tasks
+from discord.ext.commands import Bot
 from discord.ext.logging import get_user_log_handler
 
 from ..util.data_processor import DataProcessor
@@ -36,15 +37,19 @@ def _owner_only(func: callable[(PlantBot, discord.Interaction), None]):
     return wrapper
 
 
-class PlantBot(discord.Client):
+class PlantBot(Bot):
     _PROBE_WARN_TIME = 60 * 60  # Warn if its been > this time since reading a value
 
     def __init__(self):
+        intents = discord.Intents.default()
+        discord.VoiceClient.warn_dave = False
+        discord.VoiceClient.warn_nacl = False
+        super().__init__("!", intents=intents, status=discord.Status.online)
+
         self._settings: PlantSettings = PlantSettings()
         self._ble_server: Server = Server(
             self._device_callback, self._settings.serviceUUID
         )
-        self._first_on_ready: bool = True
         self._last_read_time: float = time.time()
         self._tasks: list[tasks.Loop] = []
 
@@ -59,16 +64,11 @@ class PlantBot(discord.Client):
         file_handler = logging.FileHandler(self._settings.log_file)
         file_handler.setFormatter(log_format)
         self._logger.addHandler(file_handler)
-        self._discord_logger = get_user_log_handler(self, self._settings.owner)
-        self._discord_logger.setLevel(logging.INFO)
-        self._discord_logger.setFormatter(log_format)
-        self._logger.addHandler(self._discord_logger)
 
-        # setup discord bot
-        discord.VoiceClient.warn_dave = False
-        discord.VoiceClient.warn_nacl = False
-        intents = discord.Intents.default()
-        super().__init__(intents=intents, status=discord.Status.online)
+        discord_logger = get_user_log_handler(self, self._settings.owner)
+        discord_logger.setLevel(logging.INFO)
+        discord_logger.setFormatter(log_format)
+        self._logger.addHandler(self._discord_logger)
 
     async def _device_callback(self, device: BleakClient) -> None:
         self._last_read_time = time.time()
@@ -87,29 +87,22 @@ class PlantBot(discord.Client):
         super().run(token, *args, **kwargs)
 
     @override
-    async def on_ready(self) -> None:
+    async def setup_hook(self) -> None:
         self._logger.debug(self._logging_header("on_ready Enter"))
 
-        if self._first_on_ready:
-            self._first_on_ready = False
+        self._logger.debug("Starting BLE")
+        await self._ble_server.start()
 
-            self._logger.debug("Starting BLE")
-            await self._ble_server.start()
+        self._logger.debug("Registering Commands")
+        await self._register_commands()
 
-            self._logger.debug("Registering Commands")
-            await self._register_commands()
+        self._logger.debug("Start tasks")
+        await self._setup_tasks()
 
-            self._logger.debug("Start tasks")
-            await self._setup_tasks()
-
-            self._logger.debug("Setting Up Signal Logger")
-            loop = asyncio.get_event_loop()
-            for sig in (signal.SIGTERM, signal.SIGINT):
-                loop.add_signal_handler(
-                    sig, lambda: asyncio.create_task(self.shutdown())
-                )
-
-            await self._logger.info("Bot Startup!")
+        self._logger.debug("Setting Up Signal Logger")
+        loop = asyncio.get_event_loop()
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(sig, lambda: asyncio.create_task(self.shutdown()))
 
         self._logger.debug(self._logging_header("on_ready Exit"))
         self._logger.debug("Bot Started")
